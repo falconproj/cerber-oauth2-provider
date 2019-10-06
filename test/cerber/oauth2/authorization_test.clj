@@ -4,11 +4,16 @@
              [test-utils :as utils]
              [handlers :as handlers]]
             [cerber.oauth2.context :as ctx]
+            [cerber.oauth2.pkce :as pkce]
             [cheshire.core :as json]
             [compojure.core :refer [defroutes routes wrap-routes GET POST]]
             [peridot.core :refer [request header session follow-redirect]]
             [ring.middleware.defaults :refer [api-defaults wrap-defaults]]
-            [midje.sweet :refer [fact tabular => =not=> contains just truthy falsey]]))
+            [midje.sweet :refer [fact facts future-fact tabular => =not=> contains just truthy falsey]]
+            [crypto.random :as random]
+            [clojure.data.codec.base64 :as b64])
+  (:import (java.security MessageDigest)
+           (java.nio.charset StandardCharsets)))
 
 (def redirect-uri "http://localhost")
 (def scope "photo:read")
@@ -154,7 +159,7 @@
                                                     :redirect_uri redirect-uri}))))]
 
           (let [{:keys [status body]} (:response state)
-                {:keys [access_token expires_in refresh_token]} (json/parse-string (slurp body) true)]
+                {:keys [access_token expires_in refresh_token] :as all} (json/parse-string (slurp body) true)]
 
             status        => 200
             access_token  => truthy
@@ -207,6 +212,186 @@
             (-> (session app)
                 (utils/request-authorized "/users/me" access_token)
                 :login) => (:login user)))))
+
+;; PKCE * 2 code_challenge_methods * unapproved/approved * correct/incorrect challenge => 8 tests
+
+(defn code-verifier [length]
+  (let [code-verifier-bytes (random/bytes length)]
+    (String. ^bytes (b64/encode code-verifier-bytes) StandardCharsets/US_ASCII)))
+
+
+
+(comment
+  (sha-256-code-challenge "abc"))
+
+(facts "about PKCE"
+      #_ (facts "with code_challenge_method=plain"
+              (facts "using an unapproved client"
+                     (future-fact "using a correct PKCE challenge"
+
+
+
+
+                                  ;; Should succeed
+                                  )
+                     (future-fact "using an incorrect PKCE challenge"
+                                  ;; Should fail
+                                  ))
+              (facts "using an approved client"
+                     (future-fact "using a correct PKCE challenge"
+                                  ;; Should succeeed
+                                  )
+                     (future-fact "using an incorrect PKCE challenge"
+                                  ;; Should fail
+                                  )))
+       (facts "with code_challenge_method=S256"
+              (facts "using an unapproved client"
+                     (fact "using a correct PKCE challenge"
+                           (utils/with-storage :sql
+                             (let [client (utils/create-test-client redirect-uri :scope scope)
+                                   user (utils/create-test-user :password "pass")
+                                   code-verifier-s (code-verifier 32)
+                                   code-challenge (pkce/sha-256-code-challenge code-verifier-s)
+
+                                   state (-> (session (wrap-defaults oauth-routes api-defaults))
+                                             (header "Accept" "text/html")
+                                             (request (str "/authorize?response_type=code"
+                                                           "&client_id=" (:id client)
+                                                           "&scope=" scope
+                                                           "&state=" state
+                                                           "&redirect_uri=" redirect-uri
+                                                           "&code_challenge_method=S256"
+                                                           "&code_challenge=" code-challenge))
+
+                                             ;; login window
+                                             (follow-redirect)
+                                             (utils/request-secured "/login"
+                                                                    :request-method :post
+                                                                    :params {:username (:login user)
+                                                                             :password "pass"})
+
+                                             ;; authorization prompt
+                                             (follow-redirect)
+                                             (utils/request-secured "/approve"
+                                                                    :request-method :post
+                                                                    :params {:client_id (:id client)
+                                                                             :response_type "code"
+                                                                             :redirect_uri redirect-uri
+                                                                             :code_challenge_method "S256"
+                                                                             :code_challenge code-challenge})
+
+                                             ;; having access code received - final request for acess-token
+                                             (header "Authorization" (str "Basic " (utils/base64-auth client)))
+                                             ((fn [s] (request s "/token"
+                                                               :request-method :post
+                                                               :params {:grant_type "authorization_code"
+                                                                        :code (utils/extract-access-code s)
+                                                                        :code_verifier code-verifier-s
+                                                                        :redirect_uri redirect-uri}))))]
+
+                               (let [{:keys [status body]} (:response state)
+                                     {:keys [access_token expires_in refresh_token] :as all} (json/parse-string (slurp body) true)]
+
+                                 status => 200
+                                 access_token => truthy
+                                 refresh_token => truthy
+                                 expires_in => truthy
+
+                                 ;; authorized request to /users/me should contain user's login
+                                 (-> (session app)
+                                     (utils/request-authorized "/users/me" access_token)
+                                     :login) => (:login user)))))
+                     (fact "without providing the code_verifier"
+                           (utils/with-storage :sql
+                             (let [client (utils/create-test-client redirect-uri :scope scope)
+                                   user (utils/create-test-user :password "pass")
+                                   code-verifier-s (code-verifier 32)
+                                   code-challenge (pkce/sha-256-code-challenge code-verifier-s)
+
+                                   state (-> (session (wrap-defaults oauth-routes api-defaults))
+                                             (header "Accept" "text/html")
+                                             (request (str "/authorize?response_type=code"
+                                                           "&client_id=" (:id client)
+                                                           "&scope=" scope
+                                                           "&state=" state
+                                                           "&redirect_uri=" redirect-uri
+                                                           "&code_challenge_method=S256"
+                                                           "&code_challenge=" code-challenge))
+
+                                             ;; login window
+                                             (follow-redirect)
+                                             (utils/request-secured "/login"
+                                                                    :request-method :post
+                                                                    :params {:username (:login user)
+                                                                             :password "pass"})
+
+                                             ;; authorization prompt
+                                             (follow-redirect)
+                                             (utils/request-secured "/approve"
+                                                                    :request-method :post
+                                                                    :params {:client_id (:id client)
+                                                                             :response_type "code"
+                                                                             :redirect_uri redirect-uri
+                                                                             :code_challenge_method "S256"
+                                                                             :code_challenge code-challenge})
+
+                                             ;; having access code received - final request for access-token
+                                             (header "Authorization" (str "Basic " (utils/base64-auth client)))
+                                             ((fn [s] (request s "/token"
+                                                               :request-method :post
+                                                               :params {:grant_type "authorization_code"
+                                                                        :code (utils/extract-access-code s)
+                                                                        :code-verifier code-verifier-s
+                                                                        :redirect_uri redirect-uri}))))]
+
+                               (let [{:keys [status body]} (:response state)
+                                     parsed (json/parse-string (slurp body) true)]
+
+                                 ;; TODO: should the state field be here too?
+                                 status => 400
+                                 parsed => {:error "invalid_grant"
+                                            :error_description "PKCE code verifier is required but not provided"}
+                                 )))
+
+
+
+                           ;; Should succeed
+                           )
+                    #_(future-fact "using an incorrect PKCE challenge"
+                                  ;; Should fail
+                                  ))
+             #_ (facts "using an approved client"
+                     (future-fact "using a correct PKCE challenge"
+                                  ;; Should succeed
+                                  )
+                     (future-fact "using an incorrect PKCE challenge"
+                                  ;; Should fail
+                                  )))
+
+       #_(fact "with incorrectly formatted code_challenge")
+
+       (fact "with unknown code_challenge_method"
+             (utils/with-storage :sql
+                                 (let [client (utils/create-test-client redirect-uri :scope scope)
+                                       user (utils/create-test-user :password "pass")
+                                       state (-> (session (wrap-defaults oauth-routes api-defaults))
+                                                 (header "Accept" "text/html")
+                                                 (request (str "/authorize?response_type=code"
+                                                               "&client_id=" (:id client)
+                                                               "&scope=" scope
+                                                               "&state=" state
+                                                               "&redirect_uri=" redirect-uri
+                                                               "&code_challenge_method=unknown"
+                                                               "&code_challenge=invalid")))]
+
+                                   (let [{:keys [status body]} (:response state)
+                                         {:keys [error error_description] :as parsed} (json/parse-string (slurp body) true)]
+
+                                     status => 400
+                                     error => "invalid_request"
+                                     error_description "PKCE code_challenge_method transform algorithm not supported for 'unknown'"
+                                     ))))
+       )
 
 (fact "Client is redirected with error message when tries to get an access-token with undefined scope."
       (utils/with-storage :sql

@@ -11,23 +11,21 @@
         digest {:mvn/version "1.4.9"}}
 
  :aliases {:test-once {:main-opts ["-m" "cerber.test-runner"]}
+           :test {:extra-paths ["test"]
+                  :extra-deps {;; tests
+                               midje {:mvn/version "1.9.9"}
+                               peridot {:mvn/version "0.5.1"}
+                               compojure {:mvn/version "1.6.1"}
 
-           :dev {:extra-paths ["test"]
-                 :extra-deps {defunkt/revolt {:mvn/version "1.3.3"}
+                               ;; db JDBC drivers
+                               com.h2database/h2 {:mvn/version "1.4.197"}
+                               mysql/mysql-connector-java {:mvn/version "8.0.11"}
+                               org.postgresql/postgresql {:mvn/version "42.2.4"}
+                               com.github.kstyrc/embedded-redis {:mvn/version "0.6"}}}
+           :dev {:extra-deps {defunkt/revolt {:mvn/version "1.3.3"}
                               defunkt/revolt-catapulte-task {:mvn/version "0.1.3"}
-                              defunkt/revolt-flyway-task {:mvn/version "0.2.0"}
-
-                              ;; tests
-                              midje {:mvn/version "1.9.2"}
-                              peridot {:mvn/version "0.5.1"}
-                              compojure {:mvn/version "1.6.1"}
-
-                              ;; db JDBC drivers
-                              com.h2database/h2 {:mvn/version "1.4.197"}
-                              mysql/mysql-connector-java {:mvn/version "8.0.11"}
-                              org.postgresql/postgresql {:mvn/version "42.2.4"}
-                              com.github.kstyrc/embedded-redis {:mvn/version "0.6"}}
-                 :main-opts  ["-m" "revolt.bootstrap"
+                              defunkt/revolt-flyway-task {:mvn/version "0.2.0"}}
+                 #_ #_ :main-opts  ["-m" "revolt.bootstrap"
                                "-c" "revolt.edn"]}
 
            ;; dependencies for nrepl

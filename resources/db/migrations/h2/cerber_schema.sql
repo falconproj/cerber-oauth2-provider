@@ -52,6 +52,8 @@ create table authcodes (
   scope varchar(255),
   redirect_uri varchar(255),
   expires_at datetime not null,
+  code_challenge_method varchar(255) null,
+  code_challenge        varchar(255) null,
   created_at datetime not null,
   UNIQUE KEY authcodes_unique (code, redirect_uri)
 );

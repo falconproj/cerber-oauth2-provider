@@ -5,6 +5,7 @@
              [form :as form]]
             [cerber.oauth2
              [context :as ctx]
+             [pkce :as pkce]
              [settings :as settings]]
             [cerber.stores
              [authcode :as authcode]
@@ -28,9 +29,9 @@
   (-> (redirect-to url)
       (assoc :session session)))
 
-(defn redirect-with-code [{:keys [::ctx/user ::ctx/client ::ctx/scopes ::ctx/state ::ctx/redirect-uri]}]
+(defn redirect-with-code [{:keys [::ctx/user ::ctx/client ::ctx/scopes ::ctx/state ::ctx/redirect-uri ::pkce/code-challenge-method ::pkce/code-challenge]}]
   (f/attempt-all [access-scope (helpers/coll->str scopes)
-                  authcode     (or (authcode/create-authcode client user access-scope redirect-uri) error/server-error)
+                  authcode     (or (authcode/create-authcode client user access-scope redirect-uri nil code-challenge-method code-challenge) error/server-error)
                   redirect     (str redirect-uri
                                     "?code=" (:code authcode)
                                     (when state (str "&state=" state)))]

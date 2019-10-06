@@ -29,6 +29,9 @@
 (def invalid-redirect-uri
   (map->HttpError {:error "invalid_redirect_uri" :message "Invalid redirect URI" :code 400}))
 
+(def invalid-grant
+  (map->HttpError {:error "invalid_grant" :message "The provided authorization grant is invalid" :code 400}))
+
 (def unapproved
   (map->HttpError {:error "unapproved" :message "Authorization not approved" :code 403}))
 

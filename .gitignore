@@ -17,3 +17,4 @@ dist/
 *.pid
 *.paw
 *-local.edn
+pom.xml

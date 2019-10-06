@@ -3,6 +3,7 @@
             [cerber.form :as form]
             [cerber.oauth2.context :as ctx]
             [cerber.oauth2.response :as response]
+            [cerber.oauth2.pkce :as pkce]
             [cerber.stores.token :as token]
             [failjure.core :as f]))
 
@@ -12,6 +13,13 @@
 
 ;; authorization request handler for Authorization Code grant type
 
+
+;; code challenge
+;; code challenge method
+
+;; Store the code challenge and code challenge method
+;;
+
 (defmethod authorization-request-handler "code"
   [req]
   (let [result (f/attempt-> req
@@ -19,6 +27,7 @@
                             (ctx/redirect-allowed?)
                             (ctx/state-allowed?)
                             (ctx/scopes-allowed?)
+                            (pkce/code-challenge-valid?)
                             (ctx/user-authenticated?)
                             (ctx/request-approved?))]
     (if (f/failed? result)
@@ -48,12 +57,18 @@
 
 ;; token request handler for Authorization Code grant type
 
+;; Check if PKCE code_challenge is required
+;; If it is, lookup code_challenge_method to work out how to check it
+;; If plain then compare directly
+;; If S256 then hash/combine code verifier and compare it with the stored code_challenge
+
 (defmethod token-request-handler "authorization_code"
   [req]
   (let [result (f/attempt-> req
                             (ctx/client-authenticated?)
                             (ctx/grant-allowed? "authorization_code")
                             (ctx/authcode-valid?)
+                            (pkce/code-verifier-valid?)
                             (ctx/redirect-valid?)
                             (ctx/user-valid?))]
     (if (f/failed? result)

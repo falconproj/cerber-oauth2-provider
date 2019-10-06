@@ -53,11 +53,13 @@
 
 (defn row->authcode
   [row]
-  (when-let [{:keys [client_id login code scope redirect_uri created_at expires_at]} row]
+  (when-let [{:keys [client_id login code scope redirect_uri created_at expires_at code_challenge_method code_challenge]} row]
     {:client-id client_id
      :login login
      :code code
      :scope scope
      :redirect-uri redirect_uri
      :expires-at expires_at
-     :created-at created_at}))
+     :created-at created_at
+     :code-challenge-method code_challenge_method
+     :code-challenge code_challenge }))

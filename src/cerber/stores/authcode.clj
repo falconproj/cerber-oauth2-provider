@@ -63,16 +63,18 @@
   (purge! @authcode-store))
 
 (defn create-authcode
+  ;; TODO: check all callers of this provide code-challenge properly
   "Creates and returns a new auth-code."
-
-  [client user scope redirect-uri & [ttl]]
+  [client user scope redirect-uri & [ttl code-challenge-method code-challenge]]
   (let [authcode (helpers/reset-ttl
                   {:client-id (:id client)
                    :login (:login user)
                    :scope scope
                    :code (helpers/generate-secret)
                    :redirect-uri redirect-uri
-                   :created-at (helpers/now)}
+                   :created-at (helpers/now)
+                   :code-challenge-method code-challenge-method ;; TODO: handle plain?
+                   :code-challenge code-challenge}
                   (or ttl (settings/authcode-valid-for)))]
 
     (if (store! @authcode-store [:code] authcode)

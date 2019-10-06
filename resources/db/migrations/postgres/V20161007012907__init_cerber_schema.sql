@@ -47,6 +47,8 @@ create table authcodes (
   redirect_uri varchar(255),
   expires_at timestamp not null,
   created_at timestamp not null,
+  code_challenge_method varchar(255) null,
+  code_challenge varchar(255) null,
   UNIQUE (code, redirect_uri)
 );
 
