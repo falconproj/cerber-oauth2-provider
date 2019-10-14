@@ -72,6 +72,6 @@
                                                                          :message "PKCE code verifier is required but not provided"))
                     verified? (or (verify-code-verifier authcode code-verifier)
                                   (assoc error/invalid-grant
-                                    :message "Couldn't verify code-verifier"))]
+                                    :message "Couldn't verify code_verifier"))]
       req)
     req))
