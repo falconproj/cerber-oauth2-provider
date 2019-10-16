@@ -4,7 +4,8 @@
             [failjure.core :as f]
             [clojure.data.codec.base64 :as b64])
   (:import (java.nio.charset StandardCharsets)
-           (java.security MessageDigest)))
+           (java.security MessageDigest)
+           (java.util Base64)))
 
 (def supported-code-challenge-methods
   #{"plain" "S256"})
@@ -28,10 +29,11 @@
    RFC7636 4.2, 4.6, Appendix B
    BASE64URL-ENCODE(SHA256(ASCII(code_verifier)))"
   [code-verifier]
-  (let [digest (MessageDigest/getInstance "SHA-256")]
+  (let [digest (MessageDigest/getInstance "SHA-256")
+        encoder (.withoutPadding (Base64/getUrlEncoder))]
     (String. (->> (.getBytes code-verifier StandardCharsets/US_ASCII)
                   (.digest digest)
-                  (b64/encode))
+                  (.encode encoder))
              StandardCharsets/UTF_8)))
 
 ;; TODO: tests for all 3 conditions
