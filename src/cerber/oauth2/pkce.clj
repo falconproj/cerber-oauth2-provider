@@ -23,17 +23,20 @@
 
 (comment)
 
+(defn url-safe-base64-encode [^bytes bytes]
+  (let [encoder (.withoutPadding (Base64/getUrlEncoder))]
+    (.encode encoder bytes)))
+
 (defn sha-256-code-challenge
   "Creates the code challenge from a code verifier.
 
    RFC7636 4.2, 4.6, Appendix B
    BASE64URL-ENCODE(SHA256(ASCII(code_verifier)))"
   [code-verifier]
-  (let [digest (MessageDigest/getInstance "SHA-256")
-        encoder (.withoutPadding (Base64/getUrlEncoder))]
-    (String. (->> (.getBytes code-verifier StandardCharsets/US_ASCII)
-                  (.digest digest)
-                  (.encode encoder))
+  (let [digest (MessageDigest/getInstance "SHA-256")]
+    (String. ^bytes (->> (.getBytes code-verifier StandardCharsets/US_ASCII)
+                         (.digest digest)
+                         (url-safe-base64-encode))
              StandardCharsets/UTF_8)))
 
 ;; TODO: tests for all 3 conditions

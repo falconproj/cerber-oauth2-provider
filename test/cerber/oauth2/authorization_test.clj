@@ -217,9 +217,7 @@
 
 (defn code-verifier [length]
   (let [code-verifier-bytes (random/bytes length)]
-    (String. ^bytes (b64/encode code-verifier-bytes) StandardCharsets/US_ASCII)))
-
-
+    (String. ^bytes (pkce/url-safe-base64-encode code-verifier-bytes) StandardCharsets/US_ASCII)))
 
 (comment
   (sha-256-code-challenge "abc"))
